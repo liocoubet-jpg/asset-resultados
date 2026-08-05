@@ -38,7 +38,9 @@ table th{padding:8px 10px;text-align:right;color:var(--gris-tx);font-weight:500;
 table th:first-child{text-align:left;min-width:200px}
 table td{padding:6px 10px;text-align:right;border-bottom:1px solid #f0f1f4;white-space:nowrap;color:var(--negro)}
 table td:first-child{text-align:left;color:var(--gris-tx)}
-tr.sec-hdr td{background:var(--azul-cl);color:var(--azul)!important;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+tr.sec-hdr td{background:var(--azul-cl);color:var(--azul)!important;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;user-select:none}
+tr.sec-hdr .arrow{display:inline-block;width:14px;transition:transform .15s;color:var(--azul)}
+tr.sec-hdr.open .arrow{transform:rotate(90deg)}
 tr.sub td:first-child{padding-left:20px}
 tr.sec-total td{background:#f8f9fb;font-weight:600;color:var(--negro)!important;border-top:1px solid var(--gris-br)}
 tr.grand td{background:var(--azul);color:#fff!important;font-weight:600}
@@ -121,6 +123,12 @@ const fmtK = v => {
 const cls = v => v>0?'pos-val':v<0?'neg-val':'';
 const sum5 = a => a.reduce((x,y)=>x+y,0);
 
+function toggleSection(id){
+  const header = document.getElementById(id);
+  const opening = header.classList.toggle('open');
+  document.querySelectorAll(`tr[data-group="${id}"]`).forEach(r => r.style.display = opening ? '' : 'none');
+}
+
 // KPIs — acumulado anual Ene-Jun
 const tiAcum = 236106727, teAcum = -381977400, ganAcum = -145870673;
 document.getElementById('kpis').innerHTML = [
@@ -152,12 +160,13 @@ new Chart(document.getElementById('chartEvol'), {
 // Tabla comparativa consolidada
 (function(){
   let html = `<thead><tr><th>Concepto</th>${MESES.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody>`;
-  CONS.secciones.forEach(sec => {
-    html += `<tr class="sec-hdr"><td colspan="${MESES.length+1}">${sec.name}</td></tr>`;
+  CONS.secciones.forEach((sec, si) => {
+    const secId = `cmp-sec-${si}`;
+    html += `<tr class="sec-hdr" id="${secId}" onclick="toggleSection('${secId}')"><td colspan="${MESES.length+1}"><span class="arrow">▸</span>${sec.name}</td></tr>`;
     sec.subs.forEach(sub => {
       const allZero = sub.vals.every(v=>v===0);
       if(allZero) return;
-      html += `<tr class="sub"><td>${sub.name}</td>${sub.vals.map(v=>`<td class="${cls(v)}">${fmtN(v)}</td>`).join('')}</tr>`;
+      html += `<tr class="sub" data-group="${secId}" style="display:none"><td>${sub.name}</td>${sub.vals.map(v=>`<td class="${cls(v)}">${fmtN(v)}</td>`).join('')}</tr>`;
     });
     const tots = MESES.map((_,mi)=>sec.subs.reduce((a,s)=>a+s.vals[mi],0));
     html += `<tr class="sec-total"><td>Total ${sec.name}</td>${tots.map(v=>`<td class="${cls(v)}">${fmtN(v)}</td>`).join('')}</tr>`;
@@ -183,10 +192,11 @@ function renderDet(mes) {
   let html = `<thead><tr><th>Concepto</th>${ENTS.map(e=>`<th>${e}</th>`).join('')}<th>Consolidado</th></tr></thead><tbody>`;
   let tI=[0,0,0,0,0], tE=[0,0,0,0,0];
 
-  SEC_ORDER.forEach(sn => {
+  SEC_ORDER.forEach((sn, si) => {
     const lines = grouped[sn];
     const isI = INGR_SEC.includes(sn);
-    html += `<tr class="sec-hdr"><td colspan="7">${sn}</td></tr>`;
+    const secId = `det-sec-${si}`;
+    html += `<tr class="sec-hdr" id="${secId}" onclick="toggleSection('${secId}')"><td colspan="7"><span class="arrow">▸</span>${sn}</td></tr>`;
     let st=[0,0,0,0,0];
     lines.forEach(r => {
       const allZero = r.vals.every(v=>v===0||v===-0);
@@ -194,7 +204,7 @@ function renderDet(mes) {
       st = st.map((v,i)=>v+r.vals[i]);
       if(isI) tI=tI.map((v,i)=>v+r.vals[i]); else tE=tE.map((v,i)=>v+r.vals[i]);
       const c = sum5(r.vals);
-      html += `<tr><td style="padding-left:20px">${r.sub}</td>${r.vals.map(v=>`<td class="${cls(v)}">${(v===0||v===-0)?'-':fmtN(v)}</td>`).join('')}<td class="${cls(c)}">${c===0?'-':fmtN(c)}</td></tr>`;
+      html += `<tr data-group="${secId}" style="display:none"><td style="padding-left:20px">${r.sub}</td>${r.vals.map(v=>`<td class="${cls(v)}">${(v===0||v===-0)?'-':fmtN(v)}</td>`).join('')}<td class="${cls(c)}">${c===0?'-':fmtN(c)}</td></tr>`;
     });
     const s=sum5(st);
     html += `<tr class="sec-total"><td>Total ${sn}</td>${st.map(v=>`<td class="${cls(v)}">${fmtN(v)}</td>`).join('')}<td class="${cls(s)}">${fmtN(s)}</td></tr>`;
